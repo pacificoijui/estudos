@@ -235,35 +235,10 @@ select.in{appearance:none;-webkit-appearance:none;padding-right:34px;cursor:poin
   .st-num{width:auto;font-size:12px}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
-
-/* ================= login ================= */
-.gate{position:fixed;inset:0;z-index:100;background:var(--paper);display:flex;align-items:center;justify-content:center;padding:20px}
-.gate-card{width:100%;max-width:360px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:32px 28px;box-shadow:var(--sh);text-align:center}
-.gate-card .mk{width:44px;height:44px;border-radius:11px;background:var(--navy);color:#fff;display:grid;place-items:center;font-family:'Playfair Display',serif;font-size:20px;font-style:italic;margin:0 auto 16px}
-.gate-card h1{font-family:'Playfair Display',serif;font-size:21px;margin-bottom:4px}
-.gate-card p{color:var(--muted);font-size:13px;margin:0 0 22px}
-.gate-card .field{text-align:left}
-.gate-err{color:var(--bad);font-size:13px;margin:-6px 0 16px;min-height:16px}
-.gate-card .btn{width:100%}
-.sync{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted)}
-.sync i{width:7px;height:7px;border-radius:50%;background:var(--muted);flex:none}
-.sync.on i{background:var(--ok)}
-.sync.off i{background:var(--bad)}
 </style>
 </head>
 <body>
-<div class="gate" id="gate">
-  <div class="gate-card">
-    <div class="mk">P</div>
-    <h1>Estudos do Pedrinho</h1>
-    <p>Entre para acessar suas matérias e questões.</p>
-    <label class="field"><span class="lab">E-mail</span><input class="in" id="gEmail" type="email" autocomplete="username"></label>
-    <label class="field"><span class="lab">Senha</span><input class="in" id="gSenha" type="password" autocomplete="current-password"></label>
-    <div class="gate-err" id="gErr"></div>
-    <button class="btn primary" id="gBtn" data-a="entrar">Entrar</button>
-  </div>
-</div>
-<div class="shell" id="app" hidden>
+<div class="shell">
   <aside class="side">
     <div class="logo"><div class="mk">P</div><div><b>Estudos</b><span>do Pedrinho</span></div></div>
     <nav class="nav" id="nav">
@@ -273,8 +248,8 @@ select.in{appearance:none;-webkit-appearance:none;padding-right:34px;cursor:poin
       <button data-tab="stats" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M5 19.5V11M12 19.5V5M19 19.5v-6"/></svg>Números<span class="ct" id="ctA"></span></button>
     </nav>
     <div class="side-foot">
-      <div class="sync" id="sync"><i></i><span id="syncTxt">conectando…</span></div>
-      <div style="display:flex;gap:14px;margin:10px 0 2px"><button data-a="exportar">Exportar</button><button data-a="importar">Importar</button><button data-a="sair">Sair</button></div>
+      <div style="display:flex;gap:14px;margin-bottom:8px"><button data-a="exportar">Exportar</button><button data-a="importar">Importar</button></div>
+      Salvo neste computador.
       <input type="file" id="fileIn" accept="application/json" hidden>
     </div>
   </aside>
@@ -285,27 +260,11 @@ select.in{appearance:none;-webkit-appearance:none;padding-right:34px;cursor:poin
 </div>
 <div id="modalHost"></div>
 <div class="toast" id="toast"></div>
-<script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js';
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut }
-  from 'https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js';
-import { getFirestore, doc, getDoc, setDoc }
-  from 'https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js';
-
-/* ---------------- Firebase — cole a config do seu projeto aqui ---------------- */
-var firebaseConfig = {
-  apiKey: "AIzaSyDRfLlhKYYQHaeOKtMm5nujll4wk6R7NVo",
-  authDomain: "estudos-concurso-9ed60.firebaseapp.com",
-  projectId: "estudos-concurso-9ed60",
-  storageBucket: "estudos-concurso-9ed60.firebasestorage.app",
-  messagingSenderId: "579131698400",
-  appId: "1:579131698400:web:80e421d99ec6387204f485"
-};
-var fbApp=initializeApp(firebaseConfig), auth=getAuth(fbApp), db=getFirestore(fbApp);
-
+<script>
 (function(){
 'use strict';
 var KEY='estudos_do_pedrinho_v1', LETRAS='ABCDE';
+var cloud=(window.storage&&typeof window.storage.get==='function')?window.storage:null;
 var S={materias:[],submaterias:[],questoes:[],hist:[]};
 var pilha=[{v:'materias',p:{}}], sessao=null, rascunho=null, modal=null;
 var setup={materiaId:null,submateriaId:null,modo:'todas',qtd:10};
@@ -321,45 +280,17 @@ function sigla(n){var p=String(n||'?').trim().split(/\s+/);return (p.length>1?(p
 function corte(t,n){t=String(t||'');return esc(t.length>n?t.slice(0,n)+'…':t);}
 
 /* ---------------- armazenamento ---------------- */
-function marcarSync(ok){
-  var s=el('sync'); if(!s) return;
-  s.className='sync '+(ok?'on':'off');
-  el('syncTxt').textContent=ok?'sincronizado':'salvando só neste aparelho';
-}
-function aplicar(d){S.materias=d.materias||[];S.submaterias=d.submaterias||[];S.questoes=d.questoes||[];S.hist=d.hist||[];}
 function salvar(){clearTimeout(salvar._t);salvar._t=setTimeout(function(){
   var txt=JSON.stringify(S);
   try{localStorage.setItem(KEY,txt);}catch(e){}
-  if(auth.currentUser){
-    setDoc(doc(db,'estudos','dados'),{materias:S.materias,submaterias:S.submaterias,questoes:S.questoes,hist:S.hist})
-      .then(function(){marcarSync(true);}).catch(function(){marcarSync(false);});
-  }
+  if(cloud){cloud.set(KEY,txt).catch(function(){});}
 },250);}
 function carregar(){
-  pilha=[{v:'materias',p:{}}];
+  var fim=function(d){if(d&&d.materias){S.materias=d.materias||[];S.submaterias=d.submaterias||[];S.questoes=d.questoes||[];S.hist=d.hist||[];}desenhar();};
   var local=null; try{var raw=localStorage.getItem(KEY);if(raw)local=JSON.parse(raw);}catch(e){}
-  if(!auth.currentUser){if(local)aplicar(local);desenhar();return;}
-  getDoc(doc(db,'estudos','dados')).then(function(snap){
-    if(snap.exists()){aplicar(snap.data());}
-    else if(local){aplicar(local);salvar();} /* primeira vez neste projeto: envia o que já existia localmente */
-    marcarSync(true); desenhar();
-  }).catch(function(){if(local)aplicar(local);marcarSync(false);desenhar();});
+  if(cloud){cloud.get(KEY).then(function(r){var d=null;try{d=JSON.parse(r.value);}catch(e){}fim(d||local);}).catch(function(){fim(local);});}
+  else fim(local);
 }
-function entrar(){
-  var email=el('gEmail').value.trim(), senha=el('gSenha').value, err=el('gErr');
-  err.textContent='';
-  if(!email||!senha){err.textContent='Preencha e-mail e senha';return;}
-  el('gBtn').disabled=true; el('gBtn').textContent='Entrando…';
-  signInWithEmailAndPassword(auth,email,senha).catch(function(e){
-    err.textContent=(e.code==='auth/invalid-credential'||e.code==='auth/wrong-password'||e.code==='auth/user-not-found')
-      ?'E-mail ou senha incorretos':'Não deu pra entrar — confira sua internet e a configuração do Firebase';
-  }).finally(function(){el('gBtn').disabled=false;el('gBtn').textContent='Entrar';});
-}
-function sair(){signOut(auth);}
-onAuthStateChanged(auth,function(user){
-  el('gate').hidden=!!user; el('app').hidden=!user;
-  if(user) carregar();
-});
 
 /* ---------------- consultas ---------------- */
 function mat(id){return S.materias.filter(function(m){return m.id===id})[0];}
@@ -831,8 +762,6 @@ document.addEventListener('click',function(ev){
   else if(a==='exportar') exportar();
   else if(a==='importar') el('fileIn').click();
   else if(a==='exemplo') exemplo();
-  else if(a==='entrar') entrar();
-  else if(a==='sair') sair();
 });
 document.addEventListener('change',function(ev){
   if(ev.target.id==='fMat'){lerForm();rascunho.submateriaId=null;abrirForm();}
@@ -847,7 +776,6 @@ document.addEventListener('input',function(ev){
       '<div class="empty"><div class="big">Nada encontrado</div><p>Tente outras palavras do enunciado.</p></div>';}
 });
 document.addEventListener('keydown',function(ev){
-  if(ev.key==='Enter'&&(ev.target.id==='gSenha'||ev.target.id==='gEmail')) return entrar();
   if(ev.key==='Escape'&&modal) return fecharModal();
   if(modal&&ev.key==='Enter'&&ev.target.dataset&&ev.target.dataset.enter){
     var alvo=document.querySelector('[data-a="'+ev.target.dataset.enter+'"]'); if(alvo) alvo.click(); return;}
@@ -864,6 +792,7 @@ document.addEventListener('keydown',function(ev){
 });
 [].forEach.call(document.querySelectorAll('.nav button'),function(b){b.addEventListener('click',function(){raiz(b.dataset.tab);});});
 window.addEventListener('beforeunload',function(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}});
+carregar();
 })();
 
 </script>
