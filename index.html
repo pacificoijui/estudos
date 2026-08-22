@@ -166,6 +166,11 @@ select.in{appearance:none;-webkit-appearance:none;padding-right:34px;cursor:poin
 .notes .nf button{font-size:12.5px;font-weight:600;color:var(--muted)}
 .notes .nf button:hover{color:var(--ink)}
 .notes .nf button.rm:hover{color:var(--bad)}
+.nome-ed{display:inline-flex;align-items:center;gap:7px;max-width:100%;font-weight:700;font-size:15px;
+  padding:2px 6px;margin-left:-6px;border-radius:6px;color:var(--ink)}
+.nome-ed:hover{background:var(--line-soft)}
+.nome-ed .lapis{color:var(--muted);font-size:12.5px;flex:none}
+.nome-ed:hover .lapis{color:var(--gold)}
 .st-name{width:230px;flex:none;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .st-num{width:130px;text-align:right}
 .st-pct{width:58px;text-align:center}
@@ -189,6 +194,13 @@ select.in{appearance:none;-webkit-appearance:none;padding-right:34px;cursor:poin
 .alt.no .L{background:var(--bad);color:#fff;border-color:var(--bad)}
 .alt.dim{opacity:.5}
 .alt:disabled{cursor:default}
+/* comentário preso à alternativa: fica logo abaixo dela, então não depende de letra */
+.altcom{margin:-4px 0 11px 0;padding:9px 13px 9px 40px;border-radius:0 0 9px 9px;font-size:13.5px;line-height:1.55;
+  color:var(--ink2);background:#FBFCFD;border:1px solid var(--line);border-top:0;white-space:pre-wrap}
+.altcom.ok{border-color:#C9E4D8;background:var(--ok-bg)}
+.altcom.no{border-color:#F0D2CE;background:var(--bad-bg)}
+.altcom.dim{opacity:.62}
+.altcom b.lt{font-weight:700;color:var(--ink)}
 .fb{margin-top:18px;padding:15px 17px;border-radius:9px;border:1px solid var(--line);background:#FBFCFD}
 .fb.ok{border-color:#C9E4D8;background:var(--ok-bg)}
 .fb.no{border-color:#F0D2CE;background:var(--bad-bg)}
@@ -617,7 +629,8 @@ function desenhar(){
     crumb='<button data-a="tab" data-t="materias">Matérias</button><i>/</i><span>'+esc(m.nome)+'</span>';
     titulo=esc(m.nome);
     sub=plural(subsDe(m.id).length,'submatéria','submatérias')+' · '+plural(qsDe(m.id).length,'questão','questões')+(st.p!==null?' · '+st.p+'% de acerto':'');
-    acts='<button class="btn" data-a="novaQuestao" data-mid="'+m.id+'">Nova questão</button>'+
+    acts='<button class="btn" data-a="renomearMateria" data-id="'+m.id+'">Renomear</button>'+
+         '<button class="btn" data-a="novaQuestao" data-mid="'+m.id+'">Nova questão</button>'+
          '<button class="btn primary" data-a="praticarMateria" data-id="'+m.id+'">Praticar</button>';
     html=vMateria(m);}
   else if(a.v==='questoes'){titulo='Questões';sub=plural(S.questoes.length,'questão cadastrada','questões cadastradas');
@@ -669,13 +682,14 @@ function vMateria(m){
   } else h+='<div class="card sub" style="text-align:center;padding:22px 16px">Nenhuma submatéria ainda.</div>';
   h+='<button class="btn" style="width:100%;margin-top:10px" data-a="novaSub" data-mid="'+m.id+'">+ Nova submatéria</button>';
   h+='<div class="rule" style="margin:20px 0"></div>'+
-     '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-a="renomearMateria" data-id="'+m.id+'">Renomear</button>'+
+     '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
      '<button class="btn danger" data-a="pedirExcluirMateria" data-id="'+m.id+'">Excluir matéria</button></div>';
   h+='</div><div>';
 
   if(sel){
     var qs=qsDeSub(sel.id), st=stat(qs);
-    h+='<div class="notes"><div class="nh"><div class="grow"><div style="font-weight:700;font-size:15px" class="trunc">'+esc(sel.nome)+'</div>'+
+    h+='<div class="notes"><div class="nh"><div class="grow"><button class="nome-ed trunc" data-a="renomearSub" data-id="'+sel.id+'" title="Renomear submatéria">'+
+      esc(sel.nome)+'<span class="lapis">✎</span></button>'+
       '<div class="sub" style="font-size:12.5px">'+plural(qs.length,'questão','questões')+(st.p!==null?' · '+st.p+'% de acerto':'')+
       ' <span id="flag" style="margin-left:6px;color:var(--ok)"></span></div></div>'+
       '<button class="btn" data-a="novaQuestao" data-mid="'+m.id+'" data-sid="'+sel.id+'">Nova questão</button>'+
@@ -683,8 +697,7 @@ function vMateria(m){
       barraFormato()+
       '<div class="edarea" id="anot" contenteditable="true" spellcheck="true" role="textbox" aria-multiline="true" '+
       'data-ph="Escreva aqui enquanto assiste a aula. Salva sozinho."></div>'+
-      '<div class="nf"><button data-a="renomearSub" data-id="'+sel.id+'">Renomear submatéria</button>'+
-      '<button class="rm" data-a="pedirExcluirSub" data-id="'+sel.id+'">Excluir submatéria</button></div></div>';
+      '<div class="nf"><button class="rm" data-a="pedirExcluirSub" data-id="'+sel.id+'">Excluir submatéria</button></div></div>';
     if(qs.length){
       h+='<div class="sec" style="margin-top:26px"><span class="eyebrow">Questões desta submatéria</span></div>'+listaQuestoes(qs);
     }
@@ -851,10 +864,11 @@ function vQuestoes(){
     '<button class="btn primary big" data-a="novaQuestao">Nova questão</button></div>';
   return h+listaQuestoes(lista)+'</div>';
 }
+function altNova(correta,texto){return {id:uid(),texto:texto||'',correta:!!correta,comentario:''};}
 function novoRascunho(mid,sid){
   return {id:null,materiaId:mid||(S.materias[0]?S.materias[0].id:null),submateriaId:sid||null,tipo:'multipla',
-    enunciado:'',comentario:'',fonte:'',
-    alternativas:[{id:uid(),texto:'',correta:true},{id:uid(),texto:'',correta:false},{id:uid(),texto:'',correta:false},{id:uid(),texto:'',correta:false}]};
+    enunciado:'',comentario:'',fonte:'',comentaPorAlt:false,
+    alternativas:[altNova(true),altNova(),altNova(),altNova()]};
 }
 function lerForm(){
   if(!rascunho) return;
@@ -862,7 +876,9 @@ function lerForm(){
     var k=par.split('|'), x=el('f'+k[0]); if(x) rascunho[k[1]]=x.value;});
   var m=el('fMat'); if(m) rascunho.materiaId=m.value||null;
   var s=el('fSub'); if(s) rascunho.submateriaId=s.value||null;
-  rascunho.alternativas.forEach(function(a,i){var x=el('fAlt'+i); if(x) a.texto=x.value;});
+  rascunho.alternativas.forEach(function(a,i){
+    var x=el('fAlt'+i); if(x) a.texto=x.value;
+    var c=el('fAltCom'+i); if(c) a.comentario=c.value;});
 }
 function abrirForm(){
   var r=rascunho;
@@ -880,6 +896,9 @@ function abrirForm(){
     '<button data-a="tipo" data-t="ce" aria-pressed="'+(r.tipo==='ce')+'">Certo ou errado</button></div></div>';
   h+='<label class="field"><span class="lab">Enunciado</span><textarea class="in" id="fEnun" style="min-height:110px" placeholder="Cole ou escreva a questão">'+esc(r.enunciado)+'</textarea></label>';
   h+='<div class="field"><span class="lab">Alternativas <span style="text-transform:none;letter-spacing:0;font-weight:500">clique na letra para marcar a certa</span></span>';
+  h+='<div class="row" style="margin:-2px 0 10px;gap:9px;flex-wrap:wrap"><span class="sub" style="font-size:12.5px">Comentar cada alternativa</span>'+
+     '<div class="seg" style="margin-left:auto"><button data-a="comentaPorAlt" data-v="0" aria-pressed="'+(!r.comentaPorAlt)+'">Não</button>'+
+     '<button data-a="comentaPorAlt" data-v="1" aria-pressed="'+(!!r.comentaPorAlt)+'">Sim</button></div></div>';
   r.alternativas.forEach(function(a,i){
     h+='<div class="row" style="margin-bottom:8px;gap:9px"><button class="alt" style="width:38px;flex:none;justify-content:center;padding:9px 0;margin:0;'+
       (a.correta?'border-color:var(--ok);background:var(--ok-bg);color:var(--ok);font-weight:700':'')+'" data-a="correta" data-i="'+i+'">'+(a.correta?'✓':LETRAS[i])+'</button>';
@@ -887,11 +906,16 @@ function abrirForm(){
     else h+='<input class="in grow" id="fAlt'+i+'" value="'+esc(a.texto)+'" placeholder="Alternativa '+LETRAS[i]+'">'+
       (r.alternativas.length>2?'<button class="x" data-a="tirarAlt" data-i="'+i+'">&#10005;</button>':'');
     h+='</div>';
+    if(r.comentaPorAlt||String(a.comentario||'').trim())
+      h+='<div class="row" style="margin:-3px 0 12px 47px"><input class="in grow" id="fAltCom'+i+'" value="'+esc(a.comentario||'')+
+         '" placeholder="'+(a.correta?'Por que esta é a certa':'Por que esta está errada')+'"></div>';
   });
   if(r.tipo==='multipla'&&r.alternativas.length<5) h+='<button class="btn" data-a="addAlt">+ Alternativa</button>';
   h+='</div>';
   h+='<label class="field"><span class="lab">Comentário do gabarito <span style="text-transform:none;letter-spacing:0;font-weight:500">opcional</span></span>'+
-     '<textarea class="in" id="fCom" placeholder="Aparece depois que você responde">'+esc(r.comentario)+'</textarea></label>';
+     '<textarea class="in" id="fCom" placeholder="Aparece depois que você responde">'+esc(r.comentario)+'</textarea>'+
+     '<span class="sub" style="font-size:12px;display:block;margin-top:6px">As alternativas embaralham a cada rodada, então não escreva “a letra B” aqui — '+
+     'o comentário de cada alternativa aparece colado nela, sempre com a letra daquela rodada.</span></label>';
   h+='<label class="field" style="margin-bottom:0"><span class="lab">Banca / ano / origem <span style="text-transform:none;letter-spacing:0;font-weight:500">opcional</span></span>'+
      '<input class="in" id="fFonte" value="'+esc(r.fonte)+'" placeholder="FGV 2025, aula 12…"></label>';
   h+='</div><div class="mf">'+(r.id?'<button class="btn danger" data-a="pedirExcluirQuestao" data-id="'+r.id+'" style="margin-right:auto">Excluir</button>':'')+
@@ -969,10 +993,15 @@ function vSessao(){
     (q.fonte?'<span class="pill">'+esc(q.fonte)+'</span>':'')+'<span class="pill gold">alternativas embaralhadas</span></div>';
   h+='<div class="enun">'+esc(q.enunciado)+'</div>';
   sessao.ordem.forEach(function(a,i){
-    var cls='alt';
-    if(sessao.resp){ if(a.correta) cls+=' ok'; else if(sessao.resp===a.id) cls+=' no'; else cls+=' dim'; }
-    h+='<button class="'+cls+'" data-a="responder" data-id="'+a.id+'"'+(sessao.resp?' disabled':'')+'>'+
+    var estado='';
+    if(sessao.resp){ estado = a.correta?'ok' : (sessao.resp===a.id?'no':'dim'); }
+    var com=String(a.comentario||'').trim();
+    h+='<button class="alt'+(estado?' '+estado:'')+'" data-a="responder" data-id="'+a.id+'"'+(sessao.resp?' disabled':'')+
+      (com?' style="margin-bottom:0;border-radius:9px 9px 0 0"':'')+'>'+
       '<span class="L">'+LETRAS[i]+'</span><span class="grow">'+esc(a.texto)+'</span></button>';
+    /* a letra vem de sessao.ordem, o embaralhamento desta rodada — nunca da ordem de cadastro */
+    if(sessao.resp&&com)
+      h+='<div class="altcom'+(estado?' '+estado:'')+'"><b class="lt">'+LETRAS[i]+')</b> '+esc(com)+'</div>';
   });
   if(sessao.resp){
     var certa=sessao.ordem.filter(function(a){return a.correta})[0];
@@ -1209,11 +1238,12 @@ document.addEventListener('click',function(ev){
   else if(a==='editarQuestao'){var q2=qst(id);if(q2){rascunho=JSON.parse(JSON.stringify(q2));abrirForm();}}
   else if(a==='tipo'){lerForm();rascunho.tipo=b.dataset.t;
     rascunho.alternativas = rascunho.tipo==='ce'
-      ? [{id:uid(),texto:'Certo',correta:true},{id:uid(),texto:'Errado',correta:false}]
-      : [{id:uid(),texto:'',correta:true},{id:uid(),texto:'',correta:false},{id:uid(),texto:'',correta:false},{id:uid(),texto:'',correta:false}];
+      ? [altNova(true,'Certo'),altNova(false,'Errado')]
+      : [altNova(true),altNova(),altNova(),altNova()];
     abrirForm();}
+  else if(a==='comentaPorAlt'){lerForm();rascunho.comentaPorAlt=b.dataset.v==='1';abrirForm();}
   else if(a==='correta'){lerForm();rascunho.alternativas.forEach(function(x,i){x.correta=(i===+b.dataset.i);});abrirForm();}
-  else if(a==='addAlt'){lerForm();rascunho.alternativas.push({id:uid(),texto:'',correta:false});abrirForm();}
+  else if(a==='addAlt'){lerForm();rascunho.alternativas.push(altNova());abrirForm();}
   else if(a==='tirarAlt'){lerForm();rascunho.alternativas.splice(+b.dataset.i,1);
     if(!rascunho.alternativas.some(function(x){return x.correta})) rascunho.alternativas[0].correta=true;abrirForm();}
   else if(a==='salvarQuestao'){
@@ -1224,7 +1254,7 @@ document.addEventListener('click',function(ev){
     if(!cheias.some(function(x){return x.correta})) return toast('Marque qual alternativa é a certa');
     rascunho.alternativas=cheias;
     if(rascunho.id){var o=qst(rascunho.id);
-      if(o){['materiaId','submateriaId','tipo','enunciado','comentario','fonte','alternativas'].forEach(function(k){o[k]=rascunho[k];});marcar(o);}}
+      if(o){['materiaId','submateriaId','tipo','enunciado','comentario','fonte','alternativas','comentaPorAlt'].forEach(function(k){o[k]=rascunho[k];});marcar(o);}}
     else {rascunho.id=uid();rascunho.acertos=0;rascunho.erros=0;rascunho.criadoEm=Date.now();S.questoes.push(marcar(rascunho));}
     salvar();fecharModal();desenhar();toast('Questão salva');}
   else if(a==='pedirExcluirQuestao') confirmar('Excluir questão','A questão e o histórico dela somem de vez.','excluirQuestao',id);
