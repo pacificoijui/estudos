@@ -295,6 +295,9 @@ select.in{appearance:none;-webkit-appearance:none;padding-right:34px;cursor:poin
   .pane{position:static}
   .kpis{grid-template-columns:repeat(2,1fr)}
   .qbox{padding:20px 18px}
+  /* sem teclado físico no celular, a dica de atalho só ocupa espaço */
+  .dica{display:none}
+  .qbox .row>.btn[data-a="pular"]{flex:1}
   /* no celular o nome da submatéria fica numa linha só e os botões descem */
   .notes .nh{padding:12px 14px;gap:8px}
   .notes .nh>.grow{flex:1 0 100%}
@@ -941,13 +944,13 @@ function comecar(){
     pool.sort(function(a,b){var ra=(a.erros||0)/Math.max(1,(a.acertos||0)+(a.erros||0)),rb=(b.erros||0)/Math.max(1,(b.acertos||0)+(b.erros||0));return rb-ra;});
     pool=pool.slice(0,Math.max(setup.qtd,10));
   }
-  sessao={fila:embaralhar(pool).slice(0,setup.qtd),i:0,respostas:[],ordem:null,resp:null};
+  sessao={fila:embaralhar(pool).slice(0,setup.qtd),i:0,respostas:[],ordem:null,resp:null,puladas:[]};
   ir('sessao',{});
 }
 function refazerErradas(){
   var fila=embaralhar(sessao.respostas.filter(function(r){return !r.ok}).map(function(r){return qst(r.id)}).filter(Boolean));
   if(!fila.length){toast('Nenhuma errada para refazer');return;}
-  sessao={fila:fila,i:0,respostas:[],ordem:null,resp:null};
+  sessao={fila:fila,i:0,respostas:[],ordem:null,resp:null,puladas:[]};
   trocar('sessao',{});
 }
 function vSessao(){
@@ -960,6 +963,7 @@ function vSessao(){
   var h='<div class="stage"><div class="qhead"><span class="pf mono" style="font-size:15px">'+(sessao.i+1)+' <span class="muted">de '+sessao.fila.length+'</span></span>'+
     '<div class="bar"><i class="ok" style="width:'+pct+'%"></i></div>'+
     '<span class="pill ok">'+acertos+' ✓</span><span class="pill bad">'+(sessao.respostas.length-acertos)+' ✗</span>'+
+    ((sessao.puladas&&sessao.puladas.length)?'<span class="pill">'+sessao.puladas.length+' pulada'+(sessao.puladas.length===1?'':'s')+'</span>':'')+
     '<button class="btn" data-a="encerrar">Encerrar</button></div>';
   h+='<div class="qbox"><div class="qmeta"><span class="pill">'+esc(nomeLocal(q))+'</span>'+
     (q.fonte?'<span class="pill">'+esc(q.fonte)+'</span>':'')+'<span class="pill gold">alternativas embaralhadas</span></div>';
@@ -976,10 +980,11 @@ function vSessao(){
     h+='<div class="fb '+(ok?'ok':'no')+'"><div class="h">'+(ok?'Acertou':'Errou — a certa era a letra '+letra)+'</div>'+
       (q.comentario?'<p>'+esc(q.comentario)+'</p>':'')+
       '<p style="color:var(--muted);font-size:12.5px;margin-top:8px">Nesta questão você já tem '+(q.acertos||0)+' acertos e '+(q.erros||0)+' erros.</p></div>';
-    h+='<div class="row" style="margin-top:18px"><span class="sub">Atalho: <span class="kbd">Enter</span></span>'+
+    h+='<div class="row" style="margin-top:18px"><span class="sub dica">Atalho: <span class="kbd">Enter</span></span>'+
       '<button class="btn primary" style="margin-left:auto" data-a="proxima">'+(sessao.i+1<sessao.fila.length?'Próxima questão':'Ver resultado')+'</button></div>';
   } else {
-    h+='<div class="sub" style="margin-top:16px">Atalho: <span class="kbd">1</span>…<span class="kbd">'+sessao.ordem.length+'</span> ou <span class="kbd">A</span>…<span class="kbd">'+LETRAS[sessao.ordem.length-1]+'</span> para responder</div>';
+    h+='<div class="row" style="margin-top:16px;flex-wrap:wrap;gap:10px"><span class="sub dica">Atalho: <span class="kbd">1</span>…<span class="kbd">'+sessao.ordem.length+'</span> ou <span class="kbd">A</span>…<span class="kbd">'+LETRAS[sessao.ordem.length-1]+'</span> para responder, <span class="kbd">S</span> para pular</span>'+
+      '<button class="btn" style="margin-left:auto" data-a="pular">Pular questão</button></div>';
   }
   return h+'</div></div>';
 }
@@ -1000,20 +1005,39 @@ function proxima(){
   sessao.i++; sessao.resp=null; sessao.ordem=null;
   if(sessao.i>=sessao.fila.length) trocar('resumo',{}); else desenhar();
 }
+function pular(){
+  if(!sessao||sessao.resp) return;
+  var q=sessao.fila[sessao.i];
+  if(q){ sessao.puladas=sessao.puladas||[]; sessao.puladas.push(q.id); }
+  sessao.i++; sessao.resp=null; sessao.ordem=null;
+  if(sessao.i>=sessao.fila.length) trocar('resumo',{}); else desenhar();
+}
+function refazerPuladas(){
+  var fila=embaralhar((sessao.puladas||[]).map(function(id){return qst(id);}).filter(Boolean));
+  if(!fila.length){toast('Nenhuma pulada para refazer');return;}
+  sessao={fila:fila,i:0,respostas:[],ordem:null,resp:null,puladas:[]};
+  trocar('sessao',{});
+}
 function vResumo(){
-  var r=sessao?sessao.respostas:[];
+  var r=sessao?sessao.respostas:[], pul=sessao?(sessao.puladas||[]):[];
   var a=r.filter(function(x){return x.ok}).length, e=r.length-a, p=r.length?Math.round(a*100/r.length):0;
   var h='<div class="stage"><div class="card" style="text-align:center;padding:34px">'+
     '<div class="eyebrow">Aproveitamento</div>'+
     '<div class="pf mono" style="font-size:64px;line-height:1;margin:10px 0;color:'+(p>=70?'var(--ok)':'var(--bad)')+'">'+p+'%</div>'+
-    '<div class="sub">'+a+' acertos e '+e+' erros em '+plural(r.length,'questão','questões')+'</div>'+
+    '<div class="sub">'+plural(a,'acerto','acertos')+' e '+plural(e,'erro','erros')+' em '+plural(r.length,'questão','questões')+
+    (pul.length?' · '+plural(pul.length,'pulada','puladas'):'')+'</div>'+
     '<div class="bar" style="margin-top:18px"><i class="ok" style="width:'+(r.length?a*100/r.length:0)+'%"></i><i class="bad" style="width:'+(r.length?e*100/r.length:0)+'%"></i></div>'+
-    '<div class="row" style="justify-content:center;margin-top:22px">'+
+    '<div class="row" style="justify-content:center;margin-top:22px;flex-wrap:wrap;gap:9px">'+
     (e?'<button class="btn gold" data-a="refazerErradas">Refazer só as erradas</button>':'')+
+    (pul.length?'<button class="btn gold" data-a="refazerPuladas">Refazer as puladas</button>':'')+
     '<button class="btn primary" data-a="voltarPratica">Nova rodada</button></div></div>';
   if(e){
     h+='<div class="sec" style="margin-top:28px"><span class="eyebrow">Questões que você errou</span></div>';
     h+=listaQuestoes(r.filter(function(x){return !x.ok}).map(function(x){return qst(x.id)}).filter(Boolean));
+  }
+  if(pul.length){
+    h+='<div class="sec" style="margin-top:28px"><span class="eyebrow">Questões que você pulou</span></div>';
+    h+=listaQuestoes(pul.map(function(id){return qst(id);}).filter(Boolean));
   }
   return h+'</div>';
 }
@@ -1214,8 +1238,10 @@ document.addEventListener('click',function(ev){
   else if(a==='praticarSub'){setup.materiaId=sbm(id).materiaId;setup.submateriaId=id;setup.modo='todas';comecar();}
   else if(a==='responder'){if(sessao&&!sessao.resp) responder(id);}
   else if(a==='proxima') proxima();
-  else if(a==='encerrar'){if(sessao&&sessao.respostas.length) trocar('resumo',{});else raiz('praticar');}
+  else if(a==='pular') pular();
+  else if(a==='encerrar'){if(sessao&&(sessao.respostas.length||(sessao.puladas&&sessao.puladas.length))) trocar('resumo',{});else raiz('praticar');}
   else if(a==='refazerErradas') refazerErradas();
+  else if(a==='refazerPuladas') refazerPuladas();
   else if(a==='voltarPratica') raiz('praticar');
   else if(a==='exportar') exportar();
   else if(a==='importar') el('fileIn').click();
@@ -1257,6 +1283,7 @@ document.addEventListener('keydown',function(ev){
     if(/^[1-5]$/.test(ev.key)) i=+ev.key-1;
     else if(/^[a-eA-E]$/.test(ev.key)) i=LETRAS.indexOf(ev.key.toUpperCase());
     if(i>=0&&i<sessao.ordem.length){ev.preventDefault();responder(sessao.ordem[i].id);}
+    else if(ev.key==='s'||ev.key==='S'){ev.preventDefault();pular();}
   } else if(ev.key==='Enter'||ev.key===' '||ev.key==='ArrowRight'){ev.preventDefault();proxima();}
 });
 [].forEach.call(document.querySelectorAll('.nav button'),function(b){b.addEventListener('click',function(){raiz(b.dataset.tab);});});
