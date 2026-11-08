@@ -239,18 +239,23 @@ select.in{appearance:none;-webkit-appearance:none;padding-right:34px;cursor:poin
 .edb b{font-size:15px}.edb i{font-family:'Playfair Display',serif;font-size:15px}
 .edb .mk-hl{background:#FBF0C4;padding:0 4px;border-radius:3px}
 .edsep{flex:none;width:1px;margin:6px 4px;background:var(--line)}
-.edarea{padding:22px 26px;min-height:56vh;line-height:1.8;font-size:15px;outline:none;overflow-wrap:break-word}
+/* leitura e edição usam a mesma tipografia, para o texto não "pular" ao trocar de modo */
+.edarea,.nota-ro{padding:22px 26px;line-height:1.8;font-size:15px;overflow-wrap:break-word}
+.edarea{min-height:56vh;outline:none}
+.nota-ro{min-height:120px}
 .edarea:empty:before{content:attr(data-ph);color:#AAB6C6}
-.edarea h3{font-family:'Playfair Display',serif;font-size:19px;margin:18px 0 6px}
-.edarea h3:first-child{margin-top:0}
-.edarea ul,.edarea ol{margin:8px 0;padding-left:24px}
-.edarea li{margin:3px 0}
-.edarea mark{background:#FBF0C4;color:inherit;padding:1px 2px;border-radius:3px}
-.edarea blockquote{margin:10px 0;padding:4px 0 4px 14px;border-left:3px solid var(--gold-line);color:var(--ink2)}
-.edarea code{background:var(--line-soft);border-radius:4px;padding:1px 5px;font-size:13.5px}
-.edarea a{color:var(--navy)}
-.nota-ro{line-height:1.8}
-.nota-ro mark{background:#FBF0C4;padding:1px 2px;border-radius:3px}
+.edarea h3,.nota-ro h3{font-family:'Playfair Display',serif;font-size:19px;margin:18px 0 6px}
+.edarea h3:first-child,.nota-ro h3:first-child{margin-top:0}
+.edarea ul,.edarea ol,.nota-ro ul,.nota-ro ol{margin:8px 0;padding-left:24px}
+.edarea li,.nota-ro li{margin:3px 0}
+.edarea mark,.nota-ro mark{background:#FBF0C4;color:inherit;padding:1px 2px;border-radius:3px}
+.edarea blockquote,.nota-ro blockquote{margin:10px 0;padding:4px 0 4px 14px;border-left:3px solid var(--gold-line);color:var(--ink2)}
+.edarea code,.nota-ro code{background:var(--line-soft);border-radius:4px;padding:1px 5px;font-size:13.5px}
+.edarea a,.nota-ro a{color:var(--navy)}
+.nota-vazia{padding:40px 26px;text-align:center;color:var(--muted);font-size:13.5px}
+.aviso{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px;padding:12px 16px;border-radius:var(--r);
+  border:1px solid var(--gold-line);background:var(--gold-bg);color:var(--gold);font-size:13.5px;font-weight:500}
+.aviso .btn{margin-left:auto}
 
 /* ================= login e sincronização ================= */
 .gate{position:fixed;inset:0;z-index:100;background:var(--paper);display:flex;justify-content:center;padding:20px;overflow:auto}
@@ -313,8 +318,9 @@ select.in{appearance:none;-webkit-appearance:none;padding-right:34px;cursor:poin
   /* no celular o nome da submatéria fica numa linha só e os botões descem */
   .notes .nh{padding:12px 14px;gap:8px}
   .notes .nh>.grow{flex:1 0 100%}
-  .notes .nh .btn{flex:1;padding:9px 10px}
-  .edarea{padding:16px 18px;min-height:46vh}
+  .notes .nh .btn{flex:1 1 auto;padding:9px 11px;white-space:nowrap}
+  .edarea,.nota-ro{padding:16px 18px}
+  .edarea{min-height:46vh}
   .edbar{padding:7px 8px;gap:3px}
   .edb{min-width:40px;height:40px}
   .st-name{width:auto;flex:1}
@@ -379,7 +385,8 @@ select.in{appearance:none;-webkit-appearance:none;padding-right:34px;cursor:poin
 <script>
 (function(){
 'use strict';
-var KEY='estudos_do_pedrinho_v1', KEY_LOCAL='estudos_do_pedrinho_modo_local', LETRAS='ABCDE';
+var KEY='estudos_do_pedrinho_v1', KEY_LOCAL='estudos_do_pedrinho_modo_local',
+    KEY_BACKUP='estudos_do_pedrinho_ultimo_backup', LETRAS='ABCDE';
 var S={materias:[],submaterias:[],questoes:[],hist:[],apagados:{}};
 var pilha=[{v:'materias',p:{}}], sessao=null, rascunho=null, modal=null;
 var setup={materiaId:null,submateriaId:null,modo:'todas',qtd:10};
@@ -599,11 +606,15 @@ function scroll(){try{window.scrollTo(0,0);}catch(e){}}
 function abrirModal(html){modal=true;el('modalHost').innerHTML='<div class="veil" id="veil"><div class="modal">'+html+'</div></div>';
   var f=el('mdIn');if(f){f.focus();f.select();}}
 function fecharModal(){modal=null;el('modalHost').innerHTML='';}
-function pedirTexto(titulo,rotulo,valor,acao){
+/* extra = {acao,id,rotulo}: botão destrutivo, longe do Salvar e atrás de um
+   clique a mais, para não dar para apagar sem querer com o dedo */
+function pedirTexto(titulo,rotulo,valor,acao,extra){
   abrirModal('<div class="mh"><h2>'+esc(titulo)+'</h2><button class="x" data-a="fecharModal">&#10005;</button></div>'+
     '<div class="mb"><label class="field"><span class="lab">'+esc(rotulo)+'</span>'+
     '<input class="in" id="mdIn" value="'+esc(valor||'')+'" data-enter="'+acao+'"></label></div>'+
-    '<div class="mf"><button class="btn" data-a="fecharModal">Cancelar</button>'+
+    '<div class="mf">'+
+    (extra?'<button class="btn danger" data-a="'+extra.acao+'" data-id="'+extra.id+'" style="margin-right:auto">'+esc(extra.rotulo)+'</button>':'')+
+    '<button class="btn" data-a="fecharModal">Cancelar</button>'+
     '<button class="btn primary" data-a="'+acao+'">Salvar</button></div>');
 }
 function confirmar(titulo,texto,acao,id,rotulo){
@@ -629,7 +640,7 @@ function desenhar(){
     crumb='<button data-a="tab" data-t="materias">Matérias</button><i>/</i><span>'+esc(m.nome)+'</span>';
     titulo=esc(m.nome);
     sub=plural(subsDe(m.id).length,'submatéria','submatérias')+' · '+plural(qsDe(m.id).length,'questão','questões')+(st.p!==null?' · '+st.p+'% de acerto':'');
-    acts='<button class="btn" data-a="renomearMateria" data-id="'+m.id+'">Renomear</button>'+
+    acts='<button class="btn" data-a="renomearMateria" data-id="'+m.id+'">✎ Editar</button>'+
          '<button class="btn" data-a="novaQuestao" data-mid="'+m.id+'">Nova questão</button>'+
          '<button class="btn primary" data-a="praticarMateria" data-id="'+m.id+'">Praticar</button>';
     html=vMateria(m);}
@@ -643,7 +654,7 @@ function desenhar(){
   el('crumb').innerHTML=crumb;
   el('htitle').innerHTML='<h1>'+titulo+'</h1>'+(sub?'<div class="sub">'+sub+'</div>':'')+(acts?'<div class="acts">'+acts+'</div>':'');
   el('main').innerHTML=html;
-  if(a.v==='materia'&&a.p.sub) ligarAnotacoes();
+  if(a.v==='materia'&&a.p.sub&&a.p.edit) ligarAnotacoes();
 }
 
 /* ---------- matérias ---------- */
@@ -652,7 +663,11 @@ function vMaterias(){
     '<p>Crie uma matéria, divida em submatérias, escreva as anotações das aulas e cadastre as questões para praticar.</p>'+
     '<button class="btn primary big" data-a="novaMateria">Criar primeira matéria</button> '+
     '<button class="btn big" data-a="exemplo">Ver um exemplo</button></div>';
-  var h='<div class="grid">';
+  var h='';
+  if(backupVencido())
+    h+='<div class="aviso">Backup '+esc(textoBackup())+' — guarde uma cópia fora do app.'+
+       '<button class="btn gold" data-a="exportar">Baixar agora</button></div>';
+  h+='<div class="grid">';
   S.materias.forEach(function(m){
     var st=stat(qsDe(m.id)),ns=subsDe(m.id).length,nq=qsDe(m.id).length,tot=st.t||1;
     h+='<button class="mcard" data-a="abrirMateria" data-id="'+m.id+'">'+
@@ -681,23 +696,29 @@ function vMateria(m){
     h+='</div>';
   } else h+='<div class="card sub" style="text-align:center;padding:22px 16px">Nenhuma submatéria ainda.</div>';
   h+='<button class="btn" style="width:100%;margin-top:10px" data-a="novaSub" data-mid="'+m.id+'">+ Nova submatéria</button>';
-  h+='<div class="rule" style="margin:20px 0"></div>'+
-     '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
-     '<button class="btn danger" data-a="pedirExcluirMateria" data-id="'+m.id+'">Excluir matéria</button></div>';
   h+='</div><div>';
 
   if(sel){
     var qs=qsDeSub(sel.id), st=stat(qs);
-    h+='<div class="notes"><div class="nh"><div class="grow"><button class="nome-ed trunc" data-a="renomearSub" data-id="'+sel.id+'" title="Renomear submatéria">'+
+    var editando_=!!atual().p.edit;
+    h+='<div class="notes"><div class="nh"><div class="grow"><button class="nome-ed trunc" data-a="renomearSub" data-id="'+sel.id+'" title="Editar submatéria">'+
       esc(sel.nome)+'<span class="lapis">✎</span></button>'+
       '<div class="sub" style="font-size:12.5px">'+plural(qs.length,'questão','questões')+(st.p!==null?' · '+st.p+'% de acerto':'')+
       ' <span id="flag" style="margin-left:6px;color:var(--ok)"></span></div></div>'+
-      '<button class="btn" data-a="novaQuestao" data-mid="'+m.id+'" data-sid="'+sel.id+'">Nova questão</button>'+
-      (qs.length?'<button class="btn gold" data-a="praticarSub" data-id="'+sel.id+'">Praticar</button>':'')+'</div>'+
-      barraFormato()+
-      '<div class="edarea" id="anot" contenteditable="true" spellcheck="true" role="textbox" aria-multiline="true" '+
-      'data-ph="Escreva aqui enquanto assiste a aula. Salva sozinho."></div>'+
-      '<div class="nf"><button class="rm" data-a="pedirExcluirSub" data-id="'+sel.id+'">Excluir submatéria</button></div></div>';
+      (editando_
+        ? '<button class="btn primary" data-a="prontoNota">Pronto</button>'
+        : '<button class="btn gold" data-a="editarNota">✎ Editar</button>'+
+          '<button class="btn" data-a="novaQuestao" data-mid="'+m.id+'" data-sid="'+sel.id+'">Nova questão</button>'+
+          (qs.length?'<button class="btn" data-a="praticarSub" data-id="'+sel.id+'">Praticar</button>':''))+
+      '</div>'+
+      (editando_
+        ? barraFormato()+
+          '<div class="edarea" id="anot" contenteditable="true" spellcheck="true" role="textbox" aria-multiline="true" '+
+          'data-ph="Escreva aqui enquanto assiste a aula. Salva sozinho."></div>'
+        : (temNotas(sel)
+            ? '<div class="nota-ro">'+notasHtml(sel)+'</div>'
+            : '<div class="nota-vazia">Sem anotações ainda.<br>Toque em <b>✎ Editar</b> para escrever.</div>'))+
+      '</div>';
     if(qs.length){
       h+='<div class="sec" style="margin-top:26px"><span class="eyebrow">Questões desta submatéria</span></div>'+listaQuestoes(qs);
     }
@@ -787,17 +808,20 @@ function atualizarBarra(){
     b.setAttribute('aria-pressed',on?'true':'false');
   });
 }
+function salvarNota(){
+  var ed=el('anot'); if(!ed) return;
+  var s=sbm(atual().p.sub); if(!s) return;        /* busca de novo: a mescla troca o objeto */
+  s.anotacoes=limpaHtml(ed.innerHTML); s.fmt='html'; marcar(s);
+  var f=el('flag'); if(f){f.textContent='salvo';clearTimeout(f._t);f._t=setTimeout(function(){f.textContent='';},1600);}
+  salvar();
+}
 function ligarAnotacoes(){
   var ed=el('anot'), barra=el('edbar'), id=atual().p.sub;
   if(!ed||!sbm(id)) return;
   ed.innerHTML=notasHtml(sbm(id));
+  if(atual().p.focar){atual().p.focar=false;try{ed.focus();}catch(e){}}
 
-  var guardar=function(){
-    var s=sbm(id); if(!s) return;                 /* busca de novo: a mescla troca o objeto */
-    s.anotacoes=limpaHtml(ed.innerHTML); s.fmt='html'; marcar(s);
-    var f=el('flag'); if(f){f.textContent='salvo';clearTimeout(f._t);f._t=setTimeout(function(){f.textContent='';},1600);}
-    salvar();
-  };
+  var guardar=function(){ salvarNota(); };
   ed.addEventListener('input',guardar);
   ed.addEventListener('blur',guardar);
   ed.addEventListener('paste',function(ev){
@@ -1155,8 +1179,9 @@ function abrirAjustes(){
     h+='<button class="opt" data-a="entrarAgora"><span>Entrar para sincronizar</span>'+
        '<span class="mt">celular + computador</span></button>';
   }
-  h+='<button class="opt" data-a="exportar"><span>Exportar backup</span><span class="mt">arquivo .json</span></button>'+
-     '<button class="opt" data-a="importar"><span>Importar backup</span><span class="mt">junta com o que já existe</span></button>'+
+  h+='<button class="opt" data-a="exportar"><span>Baixar backup</span>'+
+     '<span class="mt"'+(backupVencido()?' style="color:var(--gold);font-weight:600"':'')+'>'+esc(textoBackup())+'</span></button>'+
+     '<button class="opt" data-a="importar"><span>Restaurar de um arquivo</span><span class="mt">junta com o que já existe</span></button>'+
      (conectado?'<button class="opt" data-a="sair" style="color:var(--bad)"><span>Sair da conta</span></button>':'')+
      '</div><div class="mf"><button class="btn" data-a="fecharModal">Fechar</button></div>';
   abrirModal(h);
@@ -1167,10 +1192,43 @@ function sairConta(){
 }
 
 /* ---------- ações ---------- */
+/* ---------- backup em arquivo ----------
+   É a rede de segurança: vale mesmo que a conta, o Firebase ou este
+   navegador sumam. O arquivo é um JSON comum, legível, e o Importar
+   lê de volta tanto este formato quanto os mais antigos. */
+function ultimoBackup(){try{return +localStorage.getItem(KEY_BACKUP)||0;}catch(e){return 0;}}
+function diasSemBackup(){var t=ultimoBackup();return t?Math.floor((agora()-t)/86400000):null;}
+function textoBackup(){
+  var d=diasSemBackup();
+  if(d===null) return 'nunca foi feito';
+  return d<=0?'hoje':(d===1?'ontem':'há '+d+' dias');
+}
+/* avisa quando já há o que perder e o último backup está velho (ou nunca houve) */
+function backupVencido(){
+  if(!S.questoes.length&&!S.submaterias.length) return false;
+  var d=diasSemBackup();
+  return d===null||d>=14;
+}
 function exportar(){
-  var blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});
-  var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='estudos-do-pedrinho-'+dia()+'.json';
-  document.body.appendChild(a);a.click();a.remove();toast('Arquivo de backup gerado');
+  var pacote={
+    _backup:{
+      app:'Estudos do Pedrinho', formato:1,
+      geradoEm:new Date().toISOString(),
+      totais:{materias:S.materias.length,submaterias:S.submaterias.length,
+              questoes:S.questoes.length,respostas:S.hist.length},
+      comoRestaurar:'Abra o app, vá em Conta e backup → Importar backup e escolha este arquivo.'
+    },
+    materias:S.materias,submaterias:S.submaterias,questoes:S.questoes,hist:S.hist,apagados:S.apagados
+  };
+  var blob=new Blob([JSON.stringify(pacote,null,2)],{type:'application/json'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='estudos-do-pedrinho-'+dia()+'.json';
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(function(){URL.revokeObjectURL(a.href);},4000);
+  try{localStorage.setItem(KEY_BACKUP,String(agora()));}catch(e){}
+  toast('Backup baixado: '+plural(S.questoes.length,'questão','questões'));
+  /* a data do último backup mudou: refaz a tela (some o aviso, atualiza o menu) */
+  if(modal) abrirAjustes(); else desenhar();
 }
 function importar(f){
   var fr=new FileReader();
@@ -1183,6 +1241,7 @@ function importar(f){
       d[col].forEach(function(r){if(r&&r.id){r.atualizadoEm=t;delete S.apagados[r.id];delete d.apagados[r.id];}});
     });
     S=mesclar(S,d);
+    try{localStorage.setItem(KEY_BACKUP,String(agora()));}catch(e){}
     salvar();raiz('materias');toast('Backup importado e juntado com o que já estava aqui');
   }catch(e){toast('Arquivo inválido');}};
   fr.readAsText(f);
@@ -1210,7 +1269,8 @@ document.addEventListener('click',function(ev){
   else if(a==='novaMateria') pedirTexto('Nova matéria','Nome da matéria','','criarMateria');
   else if(a==='criarMateria'){if(!v())return toast('Escreva um nome');S.materias.push(marcar({id:uid(),nome:v(),criadoEm:Date.now()}));salvar();fecharModal();desenhar();}
   else if(a==='abrirMateria') ir('materia',{id:id});
-  else if(a==='renomearMateria'){atual().p.alvo=id;pedirTexto('Renomear matéria','Nome',mat(id).nome,'salvarNomeMateria');}
+  else if(a==='renomearMateria'){atual().p.alvo=id;pedirTexto('Editar matéria','Nome',mat(id).nome,'salvarNomeMateria',
+    {acao:'pedirExcluirMateria',id:id,rotulo:'Excluir'});}
   else if(a==='salvarNomeMateria'){if(!v())return;marcar(mat(atual().p.alvo)).nome=v();salvar();fecharModal();desenhar();}
   else if(a==='pedirExcluirMateria') confirmar('Excluir matéria','Isso apaga também as submatérias, as anotações e todas as questões dela. Não dá para desfazer.','excluirMateria',id,'Excluir tudo');
   else if(a==='excluirMateria'){
@@ -1225,7 +1285,10 @@ document.addEventListener('click',function(ev){
   else if(a==='criarSub'){if(!v())return toast('Escreva um nome');var ns=marcar({id:uid(),materiaId:atual().p.alvo,nome:v(),anotacoes:'',fmt:'html',criadoEm:Date.now()});
     S.submaterias.push(ns);salvar();fecharModal();trocar('materia',{id:ns.materiaId,sub:ns.id});}
   else if(a==='abrirSub') trocar('materia',{id:sbm(id).materiaId,sub:id});
-  else if(a==='renomearSub'){atual().p.alvo=id;pedirTexto('Renomear submatéria','Nome',sbm(id).nome,'salvarNomeSub');}
+  else if(a==='editarNota'){atual().p.edit=true;atual().p.focar=true;desenhar();}
+  else if(a==='prontoNota'){salvarNota();atual().p.edit=false;desenhar();toast('Anotações salvas');}
+  else if(a==='renomearSub'){atual().p.alvo=id;pedirTexto('Editar submatéria','Nome',sbm(id).nome,'salvarNomeSub',
+    {acao:'pedirExcluirSub',id:id,rotulo:'Excluir'});}
   else if(a==='salvarNomeSub'){if(!v())return;marcar(sbm(atual().p.alvo)).nome=v();salvar();fecharModal();desenhar();}
   else if(a==='pedirExcluirSub') confirmar('Excluir submatéria','As anotações vão junto. As questões continuam na matéria, sem submatéria.','excluirSub',id);
   else if(a==='excluirSub'){var mid=sbm(id).materiaId;

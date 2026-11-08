@@ -66,11 +66,36 @@ conta nova começa vazia. Para fechar de vez, é só desativar o provedor
 "E-mail/senha" no Console (Authentication → Sign-in method) depois de criar as suas
 contas, ou apagar o `match /estudos/dados` quando a migração já tiver acontecido.
 
-## Anotações com formatação
+## Backup em arquivo
+
+O botão **Baixar backup** (rodapé no computador, ⚙ no celular) gera um `.json`
+com tudo: matérias, submatérias, anotações, questões e histórico. É a rede de
+segurança que vale mesmo que a conta, o Firebase ou o navegador sumam.
+
+O arquivo começa com um bloco `_backup` — data, totais e como restaurar — e o
+resto são os dados em si. **Restaurar de um arquivo** lê de volta e *junta* com o
+que já existe, em vez de apagar; o que vem do backup vale mais que exclusões
+anteriores, então serve para recuperar algo apagado por engano.
+
+O app guarda a data do último backup e, passados 14 dias (ou se nunca houve um),
+mostra um aviso na tela de Matérias com o botão para baixar na hora.
+
+## Anotações: ler por padrão, editar quando quiser
+
+A submatéria abre em **modo leitura** — texto formatado, sem editor e sem nada
+clicável por acidente. O botão **✎ Editar** abre a barra de formatação e o campo
+de texto; **Pronto** salva e volta para a leitura (durante a edição também salva
+sozinho a cada tecla).
 
 As anotações guardam HTML (negrito, itálico, sublinhado, marca-texto, título,
 listas e citação). A barra de formatação fica fixa no topo do editor e funciona no
 toque — o botão segura a seleção para o teclado do celular não fechar.
+
+## Excluir
+
+Os botões de excluir matéria e submatéria não ficam soltos na tela, porque era
+fácil encostar neles sem querer no celular. Eles vivem dentro do modal de
+**✎ Editar** (no canto oposto ao Salvar) e ainda pedem confirmação.
 
 Anotações antigas, em texto puro, continuam abrindo normalmente: elas passam a ser
 HTML na primeira vez que você editar (`fmt: 'html'` marca as convertidas).
