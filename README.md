@@ -80,6 +80,17 @@ anteriores, então serve para recuperar algo apagado por engano.
 O app guarda a data do último backup e, passados 14 dias (ou se nunca houve um),
 mostra um aviso na tela de Matérias com o botão para baixar na hora.
 
+## Largura da coluna (computador)
+
+No computador a coluna de conteúdo tem largura própria (680px) e encosta à
+esquerda, em vez de esticar até o fim da tela — assim sobra espaço à direita para
+deixar o vídeo da aula em popup por cima do desktop, sem cobrir nada.
+
+Para ajustar, arraste a borda direita da caixa; dois cliques nela voltam ao
+padrão. A escolha fica guardada **só naquele aparelho** (depende do tamanho da
+tela, então não faz sentido sincronizar). No celular nada disso se aplica: a
+caixa continua ocupando a largura toda.
+
 ## Anotações: ler por padrão, editar quando quiser
 
 A submatéria abre em **modo leitura** — texto formatado, sem editor e sem nada

@@ -149,8 +149,18 @@ select.in{appearance:none;-webkit-appearance:none;padding-right:34px;cursor:poin
 .pill.bad{color:var(--bad);border-color:#F0D2CE;background:var(--bad-bg)}
 .pill.gold{color:var(--gold);border-color:var(--gold-line);background:var(--gold-bg)}
 
-/* duas colunas */
-.split{display:grid;grid-template-columns:262px 1fr;gap:26px;align-items:start}
+/* duas colunas — a da direita tem largura própria e encosta à esquerda,
+   deixando o resto da tela livre (para o vídeo da aula, por exemplo) */
+.split{display:grid;grid-template-columns:262px minmax(0,var(--col,680px));gap:26px;align-items:start;justify-content:start}
+.col2{position:relative;min-width:0}
+/* 288px = coluna das submatérias (262) + vão (26); 68px = o padding lateral */
+body.tela-materia .head,body.tela-materia main{max-width:calc(288px + var(--col,680px) + 68px)}
+.puxador{position:absolute;top:0;right:-14px;width:14px;height:100%;cursor:col-resize;touch-action:none;z-index:2}
+.puxador:before{content:"";position:absolute;left:5px;top:0;bottom:0;width:3px;border-radius:3px;
+  background:transparent;transition:background .12s}
+.puxador:hover:before,.puxador.ativo:before{background:var(--gold-line)}
+.puxador.ativo:before{background:var(--gold)}
+body.arrastando{user-select:none;-webkit-user-select:none;cursor:col-resize}
 /* sem min-width:0 a coluna cresce até caber a barra de formatação inteira,
    e aí o celular diminui o zoom da página toda para dar conta */
 .split>*{min-width:0}
@@ -309,6 +319,7 @@ select.in{appearance:none;-webkit-appearance:none;padding-right:34px;cursor:poin
   main{padding:0 18px 48px}
   .htitle h1{font-size:24px}
   .split{grid-template-columns:1fr;gap:18px}
+  .puxador{display:none}
   .pane{position:static}
   .kpis{grid-template-columns:repeat(2,1fr)}
   .qbox{padding:20px 18px}
@@ -386,7 +397,8 @@ select.in{appearance:none;-webkit-appearance:none;padding-right:34px;cursor:poin
 (function(){
 'use strict';
 var KEY='estudos_do_pedrinho_v1', KEY_LOCAL='estudos_do_pedrinho_modo_local',
-    KEY_BACKUP='estudos_do_pedrinho_ultimo_backup', LETRAS='ABCDE';
+    KEY_BACKUP='estudos_do_pedrinho_ultimo_backup', KEY_COL='estudos_do_pedrinho_largura',
+    LETRAS='ABCDE';
 var S={materias:[],submaterias:[],questoes:[],hist:[],apagados:{}};
 var pilha=[{v:'materias',p:{}}], sessao=null, rascunho=null, modal=null;
 var setup={materiaId:null,submateriaId:null,modo:'todas',qtd:10};
@@ -522,6 +534,7 @@ function carregar(){
   var local=null; try{var raw=localStorage.getItem(KEY);if(raw)local=JSON.parse(raw);}catch(e){}
   if(local) S=normalizar(local);
   try{modoLocal=localStorage.getItem(KEY_LOCAL)==='1';}catch(e){}
+  carregarLargura();
   desenhar();
 }
 
@@ -654,6 +667,8 @@ function desenhar(){
   el('crumb').innerHTML=crumb;
   el('htitle').innerHTML='<h1>'+titulo+'</h1>'+(sub?'<div class="sub">'+sub+'</div>':'')+(acts?'<div class="acts">'+acts+'</div>':'');
   el('main').innerHTML=html;
+  document.body.classList.toggle('tela-materia',a.v==='materia');
+  if(a.v==='materia') ligarPuxador();
   if(a.v==='materia'&&a.p.sub&&a.p.edit) ligarAnotacoes();
 }
 
@@ -696,7 +711,8 @@ function vMateria(m){
     h+='</div>';
   } else h+='<div class="card sub" style="text-align:center;padding:22px 16px">Nenhuma submatéria ainda.</div>';
   h+='<button class="btn" style="width:100%;margin-top:10px" data-a="novaSub" data-mid="'+m.id+'">+ Nova submatéria</button>';
-  h+='</div><div>';
+  h+='</div><div class="col2"><div class="puxador" id="puxador" '+
+     'title="Arraste para ajustar a largura · dois cliques volta ao padrão"></div>';
 
   if(sel){
     var qs=qsDeSub(sel.id), st=stat(qs);
@@ -806,6 +822,50 @@ function atualizarBarra(){
       else if(f!=='removeFormat') on=document.queryCommandState(f);
     }catch(e){}
     b.setAttribute('aria-pressed',on?'true':'false');
+  });
+}
+/* ---------- largura da coluna de conteúdo ----------
+   Fica só neste aparelho de propósito: depende do tamanho da tela,
+   não faz sentido sincronizar entre celular e computador. */
+function aplicarLargura(px){
+  if(px) document.documentElement.style.setProperty('--col',px+'px');
+  else document.documentElement.style.removeProperty('--col');
+}
+function carregarLargura(){
+  var v=null; try{v=+localStorage.getItem(KEY_COL)||null;}catch(e){}
+  if(v) aplicarLargura(v);
+}
+function ligarPuxador(){
+  var pux=el('puxador'); if(!pux) return;
+  var col=pux.parentNode, split=col.parentNode;
+  pux.addEventListener('pointerdown',function(ev){
+    if(ev.button) return;
+    ev.preventDefault();
+    var x0=ev.clientX, w0=col.getBoundingClientRect().width;
+    var caixa=document.querySelector('.content')||split;
+    var teto=Math.max(360,caixa.getBoundingClientRect().width-68-288);
+    pux.classList.add('ativo'); document.body.classList.add('arrastando');
+    try{pux.setPointerCapture(ev.pointerId);}catch(e){}
+    var largura=w0;
+    var mover=function(e){
+      largura=Math.round(Math.max(340,Math.min(teto,w0+(e.clientX-x0))));
+      aplicarLargura(largura);
+    };
+    var soltar=function(){
+      pux.removeEventListener('pointermove',mover);
+      pux.removeEventListener('pointerup',soltar);
+      pux.removeEventListener('pointercancel',soltar);
+      pux.classList.remove('ativo'); document.body.classList.remove('arrastando');
+      try{localStorage.setItem(KEY_COL,String(largura));}catch(e){}
+    };
+    pux.addEventListener('pointermove',mover);
+    pux.addEventListener('pointerup',soltar);
+    pux.addEventListener('pointercancel',soltar);
+  });
+  pux.addEventListener('dblclick',function(){
+    aplicarLargura(null);
+    try{localStorage.removeItem(KEY_COL);}catch(e){}
+    toast('Largura voltou ao padrão');
   });
 }
 function salvarNota(){
